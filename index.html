@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>氣對氣熱交換器計算</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --industrial-dark: #1a1a1a;
+            --industrial-gray: #2d2d2d;
+            --industrial-accent: #f39c12;
+            --industrial-text: #e0e0e0;
+            --industrial-border: #444444;
+            --industrial-bg-alt: #111111;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--industrial-dark);
+            color: var(--industrial-text);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--industrial-gray);
+            border: 1px solid var(--industrial-border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        /* Tabs Styling */
+        .tabs {
+            display: flex;
+            background: #111;
+            border-bottom: 2px solid var(--industrial-border);
+        }
+
+        .tab-btn {
+            padding: 15px 30px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #888;
+            font-weight: bold;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .tab-btn.active {
+            color: var(--industrial-accent);
+            background: var(--industrial-gray);
+            border-bottom: 2px solid var(--industrial-accent);
+            margin-bottom: -2px;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 0;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #333, #111);
+            padding: 25px;
+            border-bottom: 4px solid var(--industrial-accent);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            letter-spacing: 2px;
+            font-weight: 700;
+            margin: 0;
+            color: var(--industrial-accent);
+        }
+
+        .section {
+            padding: 25px;
+            border-bottom: 1px solid var(--industrial-border);
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--industrial-accent);
+            padding-left: 15px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .grid-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.8rem;
+            margin-bottom: 6px;
+            color: #bbb;
+        }
+
+        input, select {
+            background: var(--industrial-bg-alt);
+            border: 1px solid var(--industrial-border);
+            color: #fff;
+            padding: 8px;
+            border-radius: 2px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .btn-calc {
+            background: var(--industrial-accent);
+            color: #000;
+            padding: 15px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+
+        .result-panel {
+            background: #000;
+            padding: 25px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            border-bottom: 1px dashed #333;
+        }
+
+        .result-value { color: var(--industrial-accent); font-weight: bold; font-family: 'Courier New', monospace; }
+
+        /* Formula Page Styling */
+        .formula-card {
+            background: #222;
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #555;
+        }
+
+        .formula-text {
+            font-family: 'Courier New', monospace;
+            color: #4db8ff;
+            background: #000;
+            padding: 10px;
+            display: block;
+            margin: 10px 0;
+        }
+
+        ul.assumption-list {
+            list-style: square;
+            padding-left: 20px;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>GAS-TO-GAS HEX CALCULATOR V2.2</h1>
+        <p class="text-xs text-gray-500 mt-2">CREATOR: RANDY CHEN</p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab(event, 'calcTab')">CALCULATION</button>
+        <button class="tab-btn" onclick="openTab(event, 'infoTab')">FORMULA DESCRIPTION</button>
+    </div>
+
+    <!-- 分頁 1: 計算器 -->
+    <div id="calcTab" class="tab-content active">
+        <!-- 熱側 -->
+        <div class="section">
+            <div class="section-title">熱側 (Hot Side) - 幾何與風扇</div>
+            <div class="grid-inputs">
+                <div class="input-group"><label>入口溫度 T<sub>h,in</sub> (°C)</label><input type="number" id="thin" value="80"></div>
+                <div class="input-group"><label>風扇 Pmax (inH2O)</label><input type="number" id="pmax_h" value="1.5" step="0.1"></div>
+                <div class="input-group"><label>風扇 Qmax (CFM)</label><input type="number" id="qmax_h" value="200"></div>
+                <div class="input-group"><label>鰭片數量 N<sub>f,h</sub> (片)</label><input type="number" id="fin_n_h" value="50"></div>
+                <div class="input-group"><label>鰭片高度 H<sub>f,h</sub> (mm)</label><input type="number" id="fin_h_h" value="30" step="0.1"></div>
+                <div class="input-group"><label>鰭片長度 L<sub>f,h</sub> (mm)</label><input type="number" id="fin_l_h" value="500" step="1"></div>
+                <div class="input-group"><label>鰭片厚度 T<sub>f,h</sub> (mm)</label><input type="number" id="fin_t_h" value="2" step="0.1"></div>
+                <div class="input-group"><label>鰭片間距 S<sub>f,h</sub> (mm)</label><input type="number" id="fin_s_h" value="2" step="0.1"></div>
+            </div>
+        </div>
+
+        <!-- 冷側 -->
+        <div class="section">
+            <div class="section-title">冷側 (Cold Side) - 幾何與風扇</div>
+            <div class="grid-inputs">
+                <div class="input-group"><label>入口溫度 T<sub>c,in</sub> (°C)</label><input type="number" id="tcin" value="25"></div>
+                <div class="input-group"><label>風扇 Pmax (inH2O)</label><input type="number" id="pmax_c" value="1.5" step="0.1"></div>
+                <div class="input-group"><label>風扇 Qmax (CFM)</label><input type="number" id="qmax_c" value="200"></div>
+                <div class="input-group"><label>鰭片數量 N<sub>f,c</sub> (片)</label><input type="number" id="fin_n_c" value="50"></div>
+                <div class="input-group"><label>鰭片高度 H<sub>f,c</sub> (mm)</label><input type="number" id="fin_h_c" value="30" step="0.1"></div>
+                <div class="input-group"><label>鰭片長度 L<sub>f,c</sub> (mm)</label><input type="number" id="fin_l_c" value="500" step="1"></div>
+                <div class="input-group"><label>鰭片厚度 T<sub>f,c</sub> (mm)</label><input type="number" id="fin_t_c" value="2" step="0.1"></div>
+                <div class="input-group"><label>鰭片間距 S<sub>f,c</sub> (mm)</label><input type="number" id="fin_s_c" value="2" step="0.1"></div>
+            </div>
+        </div>
+
+        <!-- 結構 -->
+        <div class="section">
+            <div class="section-title">共通結構與配置</div>
+            <div class="grid-inputs">
+                <div class="input-group">
+                    <label>鰭片材質 (k)</label>
+                    <select id="k_material">
+                        <option value="180">鋁 (AL6061, 180 W/mK)</option>
+                        <option value="401">紅銅 (Copper, 401 W/mK)</option>
+                        <option value="16">不鏽鋼 (SS304, 16 W/mK)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>結構類型</label>
+                    <select id="hex_type">
+                        <option value="counter">逆流 (Counter-flow)</option>
+                        <option value="cross" selected>交叉流 (Cross-flow)</option>
+                        <option value="parallel">順流 (Parallel-flow)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-calc" onclick="calculate()">根據幾何自動解算換熱性能</button>
+
+        <div class="section">
+            <div class="result-panel" id="resultDisplay">
+                <div class="section-title" style="border-left-color: #fff;">工程計算報告</div>
+                <div class="result-grid">
+                    <div>
+                        <div class="result-item"><span class="result-label">總換熱面積 (A):</span><span class="result-value" id="resArea">-</span></div>
+                        <div class="result-item"><span class="result-label">估算對流係數 (h):</span><span class="result-value" id="resHavg">-</span></div>
+                        <div class="result-item"><span class="result-label">熱側風量:</span><span class="result-value" id="resCfmH">-</span></div>
+                        <div class="result-item"><span class="result-label">冷側風量:</span><span class="result-value" id="resCfmC">-</span></div>
+                    </div>
+                    <div>
+                        <div class="result-item"><span class="result-label">總換熱量 (Q):</span><span class="result-value" id="resQ" style="font-size: 1.2rem;">-</span></div>
+                        <div class="result-item"><span class="result-label">換熱效能 (ε):</span><span class="result-value" id="resEff">-</span></div>
+                        <div class="result-item"><span class="result-label">熱側出口:</span><span class="result-value" id="resThout">-</span></div>
+                        <div class="result-item"><span class="result-label">冷側出口:</span><span class="result-value" id="resTcout">-</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分頁 2: 公式說明 -->
+    <div id="infoTab" class="tab-content">
+        <div class="section">
+            <div class="section-title">核心假設與模型</div>
+            <ul class="assumption-list">
+                <li><strong>流體性質：</strong> 空氣視為理想氣體，密度隨溫度修正 (ρ = 1.225 × (288.15 / T))。</li>
+                <li><strong>流量解算：</strong> 使用二次系統阻抗曲線與風扇曲線交點解算工作風量。</li>
+                <li><strong>對流係數：</strong> 基於雷諾數 (Re)，層流使用常數 Nu，紊流使用 Dittus-Boelter 修正公式。</li>
+                <li><strong>效能模型：</strong> 採用 ε-NTU 法，根據流向（交叉、逆、順）決定效能方程式。</li>
+            </ul>
+
+            <div class="formula-card">
+                <h3 class="font-bold mb-2">1. 傳熱有效度 (ε) - 交叉流</h3>
+                <span class="formula-text">ε = 1 - exp[(NTU<sup>0.22</sup> / Cr) * (exp(-Cr * NTU<sup>0.78</sup>) - 1)]</span>
+                <p class="text-xs text-gray-400">其中 Cr = C<sub>min</sub> / C<sub>max</sub>，NTU = UA / C<sub>min</sub></p>
+            </div>
+
+            <div class="formula-card">
+                <h3 class="font-bold mb-2">2. 鰭片效率 (Fin Efficiency)</h3>
+                <span class="formula-text">η = tanh(m * L) / (m * L), 其中 m = √(2h / kT)</span>
+                <p class="text-xs text-gray-400">h 為對流係數，k 為鰭片導熱係數，T 為厚度。</p>
+            </div>
+
+            <div class="formula-card">
+                <h3 class="font-bold mb-2">3. 總熱交換量 (Q)</h3>
+                <span class="formula-text">Q = ε * Cmin * (T<sub>h,in</sub> - T<sub>c,in</sub>)</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 防止右鍵選單
+    document.addEventListener('contextmenu', e => e.preventDefault(), false);
+
+    // 分頁切換邏輯
+    function openTab(evt, tabName) {
+        let i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) tabcontent[i].style.display = "none";
+        tablinks = document.getElementsByClassName("tab-btn");
+        for (i = 0; i < tablinks.length; i++) tablinks[i].classList.remove("active");
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.classList.add("active");
+    }
+
+    // --- 計算引擎 ---
+    function getAirProps(tempC) {
+        const T = tempC + 273.15;
+        return {
+            rho: 1.225 * (288.15 / T),
+            cp: (T < 400) ? 1006 : 1006 + (T - 400) * 0.15,
+            k: 0.026 + (tempC * 0.00007),
+            mu: (1.716 + 0.0048 * tempC) * 1e-5
+        };
+    }
+
+    function estimateH(cfm, n_fins, h_mm, l_mm, s_mm, tempC) {
+        if (cfm <= 0) return 0;
+        const props = getAirProps(tempC);
+        const totalFlowArea = (h_mm/1000) * (s_mm/1000) * (n_fins - 1);
+        const v = (cfm * 0.000471947) / totalFlowArea;
+        const Dh = (2 * (h_mm/1000) * (s_mm/1000)) / ((h_mm/1000) + (s_mm/1000));
+        const Re = (props.rho * v * Dh) / props.mu;
+        let Nu = (Re < 2300) ? 3.66 : 0.023 * Math.pow(Re, 0.8) * Math.pow(0.7, 0.4);
+        return (Nu * props.k) / Dh;
+    }
+
+    function solveFlowRate(pMax_inH2O, qMaxCFM, h_mm, l_mm, s_mm, n_fins) {
+        const pMaxPa = pMax_inH2O * 249.09;
+        const qMax_m3s = qMaxCFM * 0.0004719;
+        const K = 8000 * (l_mm / 500) * Math.pow(1.5 / s_mm, 3) * (n_fins / 100); 
+        const Q_m3s = Math.sqrt(pMaxPa / (K + (pMaxPa / (qMax_m3s * qMax_m3s))));
+        return Q_m3s / 0.0004719;
+    }
+
+    function calcFinEff(h, k_fin, H_mm, t_mm, s_mm) {
+        const L = H_mm / 1000;
+        const t = t_mm / 1000;
+        const m = Math.sqrt((2 * h) / (k_fin * t));
+        const eta_f = (m * L === 0) ? 1 : Math.tanh(m * L) / (m * L);
+        // 修正: 將未定義的 s 改為 s_mm
+        return 1 - ((2 * L) / (2 * L + s_mm/1000)) * (1 - eta_f);
+    }
+
+    function calculate() {
+        const Thin = parseFloat(document.getElementById('thin').value);
+        const Tcin = parseFloat(document.getElementById('tcin').value);
+        const k_fin = parseFloat(document.getElementById('k_material').value);
+        const hexType = document.getElementById('hex_type').value;
+
+        const pMaxH = parseFloat(document.getElementById('pmax_h').value);
+        const qMaxH = parseFloat(document.getElementById('qmax_h').value);
+        const fnH = parseFloat(document.getElementById('fin_n_h').value);
+        const fhH = parseFloat(document.getElementById('fin_h_h').value);
+        const flH = parseFloat(document.getElementById('fin_l_h').value);
+        const ftH = parseFloat(document.getElementById('fin_t_h').value);
+        const fsH = parseFloat(document.getElementById('fin_s_h').value);
+
+        const pMaxC = parseFloat(document.getElementById('pmax_c').value);
+        const qMaxC = parseFloat(document.getElementById('qmax_c').value);
+        const fnC = parseFloat(document.getElementById('fin_n_c').value);
+        const fhC = parseFloat(document.getElementById('fin_h_c').value);
+        const flC = parseFloat(document.getElementById('fin_l_c').value);
+        const ftC = parseFloat(document.getElementById('fin_t_c').value);
+        const fsC = parseFloat(document.getElementById('fin_s_c').value);
+
+        const operCfmH = solveFlowRate(pMaxH, qMaxH, fhH, flH, fsH, fnH);
+        const operCfmC = solveFlowRate(pMaxC, qMaxC, fhC, flC, fsC, fnC);
+
+        const AreaH = 2 * (fhH/1000) * (flH/1000) * fnH;
+        const AreaC = 2 * (fhC/1000) * (flC/1000) * fnC;
+        const A_avg = (AreaH + AreaC) / 2;
+
+        const hH = estimateH(operCfmH, fnH, fhH, flH, fsH, Thin);
+        const hC = estimateH(operCfmC, fnC, fhC, flC, fsC, Tcin);
+
+        const etaH = calcFinEff(hH, k_fin, fhH, ftH, fsH);
+        const etaC = calcFinEff(hC, k_fin, fhC, ftC, fsC);
+
+        const propsH = getAirProps(Thin);
+        const propsC = getAirProps(Tcin);
+        const Ch = (operCfmH * 0.0004719) * propsH.rho * propsH.cp;
+        const Cc = (operCfmC * 0.0004719) * propsC.rho * propsC.cp;
+
+        if (Ch <= 0 || Cc <= 0) return;
+        const Cmin = Math.min(Ch, Cc);
+        const Cr = Cmin / Math.max(Ch, Cc);
+
+        const U = 1 / ( (1/(etaH * hH)) + (1/(etaC * hC)) );
+        const NTU = (U * A_avg) / Cmin;
+
+        let eps = 0;
+        if (hexType === 'counter') {
+            eps = (Cr === 1) ? NTU/(1+NTU) : (1-Math.exp(-NTU*(1-Cr)))/(1-Cr*Math.exp(-NTU*(1-Cr)));
+        } else if (hexType === 'cross') {
+            eps = 1 - Math.exp((Math.pow(NTU, 0.22)/Cr) * (Math.exp(-Cr * Math.pow(NTU, 0.78)) - 1));
+        } else {
+            eps = (1 - Math.exp(-NTU*(1+Cr))) / (1+Cr);
+        }
+
+        const Q = eps * Cmin * (Thin - Tcin);
+        
+        document.getElementById('resultDisplay').style.display = 'block';
+        document.getElementById('resArea').innerText = A_avg.toFixed(2) + " m²";
+        document.getElementById('resHavg').innerText = ((hH+hC)/2).toFixed(1) + " W/m²K";
+        document.getElementById('resCfmH').innerText = operCfmH.toFixed(1) + " CFM";
+        document.getElementById('resCfmC').innerText = operCfmC.toFixed(1) + " CFM";
+        document.getElementById('resQ').innerText = (Q/1000).toFixed(2) + " kW";
+        document.getElementById('resEff').innerText = (eps*100).toFixed(1) + " %";
+        document.getElementById('resThout').innerText = (Thin - Q/Ch).toFixed(1) + " °C";
+        document.getElementById('resTcout').innerText = (Tcin + Q/Cc).toFixed(1) + " °C";
+    }
+</script>
+
+</body>
+</html>
